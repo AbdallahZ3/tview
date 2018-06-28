@@ -425,7 +425,7 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 
 
 func(l *List) SetSelectable(b bool) {
-	if b == true {
+	if b == false {
 		l.selectedTextColor = Styles.PrimaryTextColor
 		l.selectedBackgroundColor = Styles.PrimitiveBackgroundColor
 	}
