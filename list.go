@@ -101,7 +101,7 @@ func (l *List) GetCurrentItem() int {
 	return l.currentItem
 }
 
-func (l *List) GetSelectedItem() int {
+func (l *List) GetChosenItem() int {
 	return l.selectedItem
 }
 
