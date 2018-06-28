@@ -24,7 +24,8 @@ type List struct {
 	items []*listItem
 
 	// The index of the currently selected item.
-	currentItem int
+	currentItem  int
+	selectedItem int
 
 	// Whether or not to show the secondary item texts.
 	showSecondaryText bool
@@ -39,18 +40,21 @@ type List struct {
 	shortcutColor tcell.Color
 
 	// The text color for selected items.
-	selectedTextColor tcell.Color
+	selectedTextColor   tcell.Color
+	mySelectedTextColor tcell.Color
 
 	// The background color for selected items.
-	selectedBackgroundColor tcell.Color
+	selectedBackgroundColor   tcell.Color
+	mySelectedBackgroundColor tcell.Color
 
 	// An optional function which is called when the user has navigated to a list
 	// item.
 	changed func(index int, mainText, secondaryText string, shortcut rune)
 
-	// An optional function which is called when a list item was selected. This
+	// An optional function which is called when a list item is selected. This
 	// function will be called even if the list item defines its own callback.
-	selected func(index int, mainText, secondaryText string, shortcut rune)
+	selected   func(index int, mainText, secondaryText string, shortcut rune)
+	mySelected func(index int, mainText, secondaryText string, shortcut rune)
 
 	// An optional function which is called when the user presses the Escape key.
 	done func()
@@ -59,13 +63,16 @@ type List struct {
 // NewList returns a new form.
 func NewList() *List {
 	return &List{
-		Box:                     NewBox(),
-		showSecondaryText:       true,
-		mainTextColor:           Styles.PrimaryTextColor,
-		secondaryTextColor:      Styles.TertiaryTextColor,
-		shortcutColor:           Styles.SecondaryTextColor,
-		selectedTextColor:       Styles.PrimitiveBackgroundColor,
-		selectedBackgroundColor: Styles.PrimaryTextColor,
+		Box:                       NewBox(),
+		showSecondaryText:         true,
+		mainTextColor:             Styles.PrimaryTextColor,
+		secondaryTextColor:        Styles.TertiaryTextColor,
+		shortcutColor:             Styles.SecondaryTextColor,
+		selectedTextColor:         Styles.PrimitiveBackgroundColor,
+		selectedBackgroundColor:   Styles.PrimaryTextColor,
+		mySelectedTextColor:       tcell.ColorYellow,
+		mySelectedBackgroundColor: Styles.PrimitiveBackgroundColor,
+		selectedItem:              -1,
 	}
 }
 
@@ -80,9 +87,22 @@ func (l *List) SetCurrentItem(index int) *List {
 	return l
 }
 
+func (l *List) SetSelectedItem(index int) *List {
+	l.selectedItem = index
+	if l.selectedItem < len(l.items) && l.changed != nil {
+		item := l.items[l.selectedItem]
+		l.changed(l.selectedItem, item.MainText, item.SecondaryText, item.Shortcut)
+	}
+	return l
+}
+
 // GetCurrentItem returns the index of the currently selected list item.
 func (l *List) GetCurrentItem() int {
 	return l.currentItem
+}
+
+func (l *List) GetSelectedItem() int {
+	return l.selectedItem
 }
 
 // SetMainTextColor sets the color of the items' main text.
@@ -109,9 +129,19 @@ func (l *List) SetSelectedTextColor(color tcell.Color) *List {
 	return l
 }
 
+func (l *List) SetChosenTextColor(color tcell.Color) *List {
+	l.mySelectedTextColor = color
+	return l
+}
+
 // SetSelectedBackgroundColor sets the background color of selected items.
 func (l *List) SetSelectedBackgroundColor(color tcell.Color) *List {
-	l.selectedBackgroundColor = color
+	l.mySelectedBackgroundColor = color
+	return l
+}
+
+func (l *List) SetChosenBackgroundColor(color tcell.Color) *List {
+	l.mySelectedBackgroundColor = color
 	return l
 }
 
@@ -138,6 +168,11 @@ func (l *List) SetChangedFunc(handler func(int, string, string, rune)) *List {
 // secondary text, and its shortcut rune.
 func (l *List) SetSelectedFunc(handler func(int, string, string, rune)) *List {
 	l.selected = handler
+	return l
+}
+
+func (l *List) SetChosenFunc(handler func(int, string, string, rune)) *List {
+	l.mySelected = handler
 	return l
 }
 
@@ -249,8 +284,31 @@ func (l *List) Draw(screen tcell.Screen) {
 		// Main text.
 		Print(screen, item.MainText, x, y, width, AlignLeft, l.mainTextColor)
 
-		// Background color of selected text.
-		if index == l.currentItem {
+		if index == l.selectedItem && index == l.currentItem {
+			textWidth := StringWidth(item.MainText)
+			for bx := 0; bx < textWidth && bx < width; bx++ {
+				m, c, style, _ := screen.GetContent(x+bx, y)
+				fg, _, _ := style.Decompose()
+				if fg == l.mainTextColor {
+					fg = l.mySelectedTextColor
+				}
+				style = style.Background(Styles.ContrastBackgroundColor).Foreground(fg)
+				screen.SetContent(x+bx, y, m, c, style)
+			}
+		} else if index == l.selectedItem {
+			textWidth := StringWidth(item.MainText)
+			for bx := 0; bx < textWidth && bx < width; bx++ {
+				m, c, style, _ := screen.GetContent(x+bx, y)
+				fg, _, _ := style.Decompose()
+				if fg == l.mainTextColor {
+					fg = l.mySelectedTextColor
+				}
+				style = style.Background(l.mySelectedBackgroundColor).Foreground(fg)
+				screen.SetContent(x+bx, y, m, c, style)
+			}
+		} else if index == l.currentItem {
+
+			// Background color of selected text.
 			textWidth := StringWidth(item.MainText)
 			for bx := 0; bx < textWidth && bx < width; bx++ {
 				m, c, style, _ := screen.GetContent(x+bx, y)
@@ -262,6 +320,20 @@ func (l *List) Draw(screen tcell.Screen) {
 				screen.SetContent(x+bx, y, m, c, style)
 			}
 		}
+
+		// // Background color of selectedItem text.
+		// if index == l.selectedItem {
+		// 	textWidth := StringWidth(item.MainText)
+		// 	for bx := 0; bx < textWidth && bx < width; bx++ {
+		// 		m, c, style, _ := screen.GetContent(x+bx, y)
+		// 		fg, _, _ := style.Decompose()
+		// 		if fg == l.mainTextColor {
+		// 			fg = l.mySelectedTextColor
+		// 		}
+		// 		style = style.Background(l.mySelectedBackgroundColor).Foreground(fg)
+		// 		screen.SetContent(x+bx, y, m, c, style)
+		// 	}
+		// }
 
 		y++
 
@@ -296,13 +368,16 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 		case tcell.KeyPgUp:
 			l.currentItem -= 5
 		case tcell.KeyEnter:
-			if l.currentItem >= 0 && l.currentItem < len(l.items) {
-				item := l.items[l.currentItem]
-				if item.Selected != nil {
-					item.Selected()
-				}
-				if l.selected != nil {
-					l.selected(l.currentItem, item.MainText, item.SecondaryText, item.Shortcut)
+			if previousItem >= 0 && previousItem < len(l.items) {
+				item := l.items[previousItem]
+				l.selectedItem = previousItem
+
+				// if item.Selected != nil {
+				// 	item.Selected()
+				// }
+
+				if l.mySelected != nil {
+					l.mySelected(l.selectedItem, item.MainText, item.SecondaryText, item.Shortcut)
 				}
 			}
 		case tcell.KeyEscape:
