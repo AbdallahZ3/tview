@@ -87,7 +87,7 @@ func (l *List) SetCurrentItem(index int) *List {
 	return l
 }
 
-func (l *List) SetSelectedItem(index int) *List {
+func (l *List) SetChosenItem(index int) *List {
 	l.selectedItem = index
 	if l.selectedItem < len(l.items) && l.changed != nil {
 		item := l.items[l.selectedItem]
@@ -369,15 +369,21 @@ func (l *List) InputHandler() func(event *tcell.EventKey, setFocus func(p Primit
 			l.currentItem -= 5
 		case tcell.KeyEnter:
 			if previousItem >= 0 && previousItem < len(l.items) {
-				item := l.items[previousItem]
-				l.selectedItem = previousItem
+				if l.selectedItem == -1 {
 
-				// if item.Selected != nil {
-				// 	item.Selected()
-				// }
+					item := l.items[previousItem]
+					l.selectedItem = previousItem
 
-				if l.mySelected != nil {
-					l.mySelected(l.selectedItem, item.MainText, item.SecondaryText, item.Shortcut)
+					// if item.Selected != nil {
+					// 	item.Selected()
+					// }
+
+					if l.mySelected != nil {
+						l.mySelected(l.selectedItem, item.MainText, item.SecondaryText, item.Shortcut)
+					}
+
+				} else {
+					l.selectedItem = -1
 				}
 			}
 		case tcell.KeyEscape:
